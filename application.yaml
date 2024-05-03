@@ -1,0 +1,32 @@
+server:
+  port: 8080
+
+spring:
+  datasource:
+    username: root
+    password: luminous4BD
+    url: jdbc:mysql://localhost:3306/search_engine?useSSL=false&requireSSL=false&allowPublicKeyRetrieval=true
+  jpa:
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQL8Dialect
+    hibernate:
+      ddl-auto: create
+    show-sql: true
+
+# example values
+
+indexing-settings:
+  sites:
+      - url: https://www.lenta.ru
+        name: Лента.ру
+      - url: https://www.skillbox.ru
+        name: Skillbox
+      - url: https://www.playback.ru
+        name: PlayBack.Ru
+      - url:  https://volochek.life
+        name: Volochek
+      - url: https://www.svetlovka.ru/
+        name: Svetlovka
+      - url: https://sendel.ru
+        name: Sendel
