@@ -8,6 +8,7 @@ import searchengine.dto.statistics.StatisticsResponse;
 import searchengine.exceptions.IndexingHasAlreadyStartedException;
 import searchengine.exceptions.IndexingIsNotRunningExceptions;
 import searchengine.exceptions.SiteUrlNotAllowedException;
+import searchengine.services.SearchService;
 import searchengine.services.StatisticsService;
 import searchengine.services.WebsiteIndexingServiceImpl;
 
@@ -22,10 +23,12 @@ public class ApiController {
     private final StatisticsService statisticsService;
     private final WebsiteIndexingServiceImpl indexingService;
     Map<String, Boolean> successfulResponse = new HashMap<>();
+    private final SearchService searchService;
 
-    public ApiController(StatisticsService statisticsService, WebsiteIndexingServiceImpl indexingService) {
+    public ApiController(StatisticsService statisticsService, WebsiteIndexingServiceImpl indexingService, SearchService searchService) {
         this.statisticsService = statisticsService;
         this.indexingService = indexingService;
+        this.searchService = searchService;
         successfulResponse.put("result", true);
     }
 
@@ -33,6 +36,20 @@ public class ApiController {
     public ResponseEntity<StatisticsResponse> statistics() {
         return ResponseEntity.ok(statisticsService.getStatistics());
     }
+
+    @GetMapping("/search")
+    public ResponseEntity<Object> search(@RequestParam(name = "query", required = false, defaultValue = "")
+                                         String query,
+                                         @RequestParam(name = "site", required = false, defaultValue = "")
+                                         String site,
+                                         @RequestParam(name = "offset", required = false, defaultValue = "0")
+                                         int offset,
+                                         @RequestParam(name = "limit", required = false, defaultValue = "20")
+                                         int limit) {
+
+        return searchService.search(query, site, offset, limit);
+    }
+
 
     @Async
     @GetMapping("/startIndexing")
@@ -65,7 +82,4 @@ public class ApiController {
                     }).start();
             return ResponseEntity.accepted().body(successfulResponse);
     }
-
-    @GetMapping("/search")
-    public void search() {}
 }
