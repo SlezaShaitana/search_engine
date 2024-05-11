@@ -129,7 +129,6 @@ public class WebsiteIndexingServiceImpl implements WebSiteIndexingService {
 
                 siteEntity = entityFactory.createSiteEntity(desiredSite);
                 idSite = siteEntity.getId();
-                System.out.println(siteEntity.getId() + " айди сайта");
             }
             SinglePageCrawl pageCrawl = new SinglePageCrawl(pageRepository, siteRepository,
                     lemmaRepository, indexRepository, idSite, siteEntity, path);

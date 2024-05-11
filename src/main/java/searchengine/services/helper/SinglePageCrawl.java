@@ -25,6 +25,7 @@ public class SinglePageCrawl {
     private final SiteEntity siteEntity;
     private final String path;
     private final EntityFactory entityFactory;
+    private final ConnectToPage connectToPage;
 
     public SinglePageCrawl(PageRepository pageRepository, SiteRepository siteRepository, LemmaRepository lemmaRepository, IndexRepository indexRepository, int idSite, SiteEntity siteEntity, String path) {
         this.pageRepository = pageRepository;
@@ -35,28 +36,21 @@ public class SinglePageCrawl {
         this.siteEntity = siteEntity;
         this.path = path;
         entityFactory = new EntityFactory(lemmaRepository, pageRepository, indexRepository);
+        connectToPage = new ConnectToPage();
     }
 
     public void indexPage(String url) {
         try {
-            Thread.sleep(400);
             log.info("Page update {}", url);
-            Connection connection = Jsoup.connect(url).userAgent("Mozilla/5.0 (Windows; U; WindowsNT 5.1; en-US; rv1.8.1.6) Gecko/20070725 Firefox/2.0.0.6")
-                    .timeout(10000)
-                    .ignoreHttpErrors(false)
-                    .ignoreContentType(true)
-                    .followRedirects(true)
-                    .referrer("http://www.google.com");
+            Connection connection = connectToPage.connectToPage(url);
+            Document page = connection.get();
+            String pageContent = page.toString();
+            int statusCode = connection.response().statusCode();
 
             SiteEntity siteEntity = siteRepository.findById(idSite).orElseThrow(() -> new RuntimeException("Site not found"));
             siteEntity.setStatus(IndexationStatuses.INDEXING);
             siteEntity.setLastError(null);
             siteRepository.save(siteEntity);
-
-            Document page = connection.get();
-            String pageContent = page.toString();
-            int statusCode = connection.response().statusCode();
-
             PageEntity pageEntity = entityFactory.createPageEntity(siteEntity, path, pageContent, statusCode);
             HashMap<String, Integer> lemmasList = lemmaFinder.collectLemmas(pageContent);
             for (Map.Entry<String, Integer> lemma : lemmasList.entrySet()) {

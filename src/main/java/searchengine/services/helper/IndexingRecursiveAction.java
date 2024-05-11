@@ -3,7 +3,6 @@ package searchengine.services.helper;
 import lombok.extern.slf4j.Slf4j;
 import org.jsoup.Connection;
 import org.jsoup.HttpStatusException;
-import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
@@ -35,6 +34,7 @@ public class IndexingRecursiveAction extends RecursiveAction {
     private final LemmaRepository lemmaRepository;
     private final IndexRepository indexRepository;
     private final EntityFactory entityFactory;
+    private final ConnectToPage connectToPage;
 
     public IndexingRecursiveAction(String url, SiteEntity siteEntity, int maxDepth,
                                    int currentDepth, PageRepository pageRepository,
@@ -51,7 +51,8 @@ public class IndexingRecursiveAction extends RecursiveAction {
         this.lemmaRepository = lemmaRepository;
         this.indexRepository = indexRepository;
         pagesToCrawl = new ConcurrentLinkedQueue<>();
-        entityFactory = new EntityFactory(lemmaRepository,pageRepository, indexRepository);
+        entityFactory = new EntityFactory(lemmaRepository, pageRepository, indexRepository);
+        connectToPage = new ConnectToPage();
     }
 
     @Override
@@ -67,13 +68,7 @@ public class IndexingRecursiveAction extends RecursiveAction {
             Thread.sleep(400);
             settingSiteStatus(IndexationStatuses.INDEXING);
             log.info("Crawling page: {}", url);
-            Connection connection = Jsoup.connect(url).userAgent("Mozilla/5.0 (Windows; U; WindowsNT 5.1; en-US; rv1.8.1.6) Gecko/20070725 Firefox/2.0.0.6")
-                    .timeout(10000)
-                    .ignoreHttpErrors(false)
-                    .ignoreContentType(true)
-                    .followRedirects(true)
-                    .referrer("http://www.google.com");
-
+            Connection connection = connectToPage.connectToPage(url);
             Document page = connection.get();
             String content = page.toString();
             int statusCode = connection.response().statusCode();
