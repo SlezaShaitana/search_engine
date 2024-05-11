@@ -4,17 +4,18 @@ import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import searchengine.config.Site;
 import searchengine.config.SitesList;
-import searchengine.dto.indexing.PageDto;
-import searchengine.dto.indexing.SiteDto;
-import searchengine.model.IndexationStatuses;
-import searchengine.model.PageEntity;
-import searchengine.model.SiteEntity;
+import searchengine.model.*;
+import searchengine.repository.IndexRepository;
+import searchengine.repository.LemmaRepository;
 import searchengine.repository.PageRepository;
 import searchengine.repository.SiteRepository;
+import searchengine.services.helper.EntityFactory;
+import searchengine.services.helper.IndexingRecursiveAction;
+import searchengine.services.helper.SinglePageCrawl;
 
-import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -22,39 +23,48 @@ import java.util.concurrent.atomic.AtomicBoolean;
 @RequiredArgsConstructor
 @Service
 @Slf4j
-public class WebsiteIndexingServiceImpl implements WebSiteIndexingService<SiteDto> {
+public class WebsiteIndexingServiceImpl implements WebSiteIndexingService {
     private final PageRepository pageRepository;
     private final SiteRepository siteRepository;
     private final SitesList sites;
     private final AtomicBoolean stopIndexingFlag;
     private ForkJoinPool pool;
+    private final LemmaRepository lemmaRepository;
+    private final IndexRepository indexRepository;
     @Getter
     private boolean isIndexing;
+    private final EntityFactory entityFactory;
 
     public boolean existenceSiteInConfigurationFile(String url) {
         List<Site> sitesList = sites.getSites();
         return sitesList.stream()
-                .anyMatch(site -> url.equals(site.getUrl()));
+                .anyMatch(site -> url.startsWith(site.getUrl()));
     }
 
+    @Transactional
     public SiteEntity rebuildingCreatingInDatabase(Site site) {
         SiteEntity siteEntityDelete = siteRepository.findByUrl(site.getUrl());
         if (siteEntityDelete != null) {
+            List<Integer> pageIds = pageRepository.findBySites_Id(siteEntityDelete.getId()).stream()
+                    .map(PageEntity::getId)
+                    .toList();
+            if (!pageIds.isEmpty()) {
+                List<PageEntity> pages = pageRepository.findBySites_Id(siteEntityDelete.getId());
+                for (PageEntity page : pages) {
+                    List<IndexEntity> indexes = indexRepository.findByPageId_Id(page.getId());
+                    indexRepository.deleteAll(indexes);
+                    List<LemmaEntity> lemmas = lemmaRepository.findBySitesId(siteEntityDelete.getId());
+                    lemmaRepository.deleteAll(lemmas);
+                    pageRepository.delete(page);
+                }
+            }
             siteRepository.delete(siteEntityDelete);
         }
-        SiteEntity siteEntity = new SiteEntity();
-        siteEntity.setName(site.getName());
-        siteEntity.setStatus(IndexationStatuses.INDEXING);
-        siteEntity.setStatusTime(LocalDateTime.now());
-        siteEntity.setLastError(null);
-        siteEntity.setUrl(site.getUrl());
-        siteRepository.save(siteEntity);
-        return siteEntity;
+        return entityFactory.createSiteEntity(site);
     }
 
-
     public void startIndexing() {
-        pool = new ForkJoinPool();
+        pool = new ForkJoinPool(4);
         stopIndexingFlag.set(false);
         isIndexing = true;
         List<Site> sitesList = sites.getSites();
@@ -64,7 +74,7 @@ public class WebsiteIndexingServiceImpl implements WebSiteIndexingService<SiteDt
             SiteEntity siteEntity = rebuildingCreatingInDatabase(site);
             ForkJoinTask<Void> forkJoinTask = new IndexingRecursiveAction(
                     site.getUrl(), siteEntity, 4, 0,
-                    pageRepository, siteRepository, stopIndexingFlag, pool);
+                    pageRepository, siteRepository, stopIndexingFlag, pool, lemmaRepository, indexRepository);
             forkJoinTaskList.add(forkJoinTask);
             forkJoinTask.fork();
         }
@@ -98,31 +108,58 @@ public class WebsiteIndexingServiceImpl implements WebSiteIndexingService<SiteDt
         }
     }
 
+    @Transactional
     @Override
     public void addOrUpdate(String url) {
-        pool = new ForkJoinPool();
-        stopIndexingFlag.set(false);
         if (existenceSiteInConfigurationFile(url)) {
-            isIndexing = true;
-            List<Site> sitesList = sites.getSites();
-            Site site = sitesList.stream()
-                    .filter(s -> url.equals(s.getUrl()))
-                    .findFirst()
-                    .get();
+            String path = url.replaceFirst("https?://[^/]+", "");
+            PageEntity page = pageRepository.findByPath(path);
+            int idSite;
+            SiteEntity siteEntity;
+            if (page != null) {
+                idSite = page.getSites().getId();
+                siteEntity = siteRepository.getReferenceById(idSite);
+                deletePage(path, page);
+            } else {
+                List<Site> sitesList = sites.getSites();
+                Site desiredSite = sitesList.stream()
+                        .filter(site -> url.startsWith(site.getUrl()))
+                        .findFirst()
+                        .orElse(null);
 
-            SiteEntity siteEntity = rebuildingCreatingInDatabase(site);
-            pool.invoke(new IndexingRecursiveAction(site.getUrl(), siteEntity, 4, 0,
-                    pageRepository, siteRepository, stopIndexingFlag, pool));
-            pool.shutdown();
-            try {
-                pool.awaitTermination(1, TimeUnit.HOURS);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
+                siteEntity = entityFactory.createSiteEntity(desiredSite);
+                idSite = siteEntity.getId();
+                System.out.println(siteEntity.getId() + " айди сайта");
             }
-            if (pool.isTerminated()) {
-                isIndexing = false;
+            SinglePageCrawl pageCrawl = new SinglePageCrawl(pageRepository, siteRepository,
+                    lemmaRepository, indexRepository, idSite, siteEntity, path);
+            if (page == null || !pageRepository.existsById(page.getId())) {
+                pageCrawl.indexPage(url);
+            } else {
+                System.out.println("Страница не была удалена");
             }
         }
     }
 
+    @Transactional
+    public void deletePage(String path, PageEntity page) {
+        if (pageRepository.existsByPath(path)) {
+            log.info("Delete page " + path);
+            List<IndexEntity> indexesToDelete = indexRepository.findByPageId_Id(page.getId());
+            for (IndexEntity index : indexesToDelete) {
+                LemmaEntity lemma = index.getLemmaId();
+                indexRepository.deleteById(index.getId());
+
+                //удаление лемм которые не используются в других индексах
+                if (indexRepository.countByLemmaIdAndPageId_IdIsNot(lemma, page.getId()) == 0) {
+                    lemmaRepository.deleteById(lemma.getId());
+                }
+            }
+            pageRepository.delete(page);
+        }
+    }
 }
+
+
+
+

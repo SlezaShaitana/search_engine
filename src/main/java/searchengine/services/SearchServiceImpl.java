@@ -19,11 +19,7 @@ public class SearchServiceImpl implements SearchService {
     }
 
     @Override
-    public  ResponseEntity<Object> search(String query, String site, int offset, int limit) {
-
+    public ResponseEntity<Object> search(String query, String site, int offset, int limit) {
         return new ResponseEntity<>(HttpStatus.OK);
-
     }
-
-
 }

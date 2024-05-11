@@ -3,7 +3,6 @@ package searchengine.controllers;
 import org.springframework.http.ResponseEntity;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.context.request.async.DeferredResult;
 import searchengine.dto.statistics.StatisticsResponse;
 import searchengine.exceptions.IndexingHasAlreadyStartedException;
 import searchengine.exceptions.IndexingIsNotRunningExceptions;
@@ -14,12 +13,10 @@ import searchengine.services.WebsiteIndexingServiceImpl;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
 
 @RestController
 @RequestMapping("/api")
 public class ApiController {
-
     private final StatisticsService statisticsService;
     private final WebsiteIndexingServiceImpl indexingService;
     Map<String, Boolean> successfulResponse = new HashMap<>();
@@ -57,8 +54,8 @@ public class ApiController {
         if (indexingService.isIndexing()) {
             throw new IndexingHasAlreadyStartedException("Индексация уже запущена");
         }
-            new Thread(() -> indexingService.startIndexing()).start();
-            return ResponseEntity.ok().body(successfulResponse);
+        new Thread(() -> indexingService.startIndexing()).start();
+        return ResponseEntity.ok().body(successfulResponse);
     }
 
     @GetMapping("/stopIndexing")
@@ -77,9 +74,9 @@ public class ApiController {
                     "Данная страница находится за пределами сайтов, " +
                             "указанных в конфигурационном файле");
         }
-                    new Thread(() -> {
-                        indexingService.addOrUpdate(url);
-                    }).start();
-            return ResponseEntity.accepted().body(successfulResponse);
+        new Thread(() -> {
+            indexingService.addOrUpdate(url);
+        }).start();
+        return ResponseEntity.accepted().body(successfulResponse);
     }
 }

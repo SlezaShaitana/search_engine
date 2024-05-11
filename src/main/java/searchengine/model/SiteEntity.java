@@ -6,7 +6,6 @@ import lombok.Setter;
 import org.springframework.data.annotation.LastModifiedDate;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.List;
 
 @Getter
@@ -30,23 +29,8 @@ public class SiteEntity {
     private String url;
     @Column(name = "name", columnDefinition = "VARCHAR(255)", nullable = false)
     private String name;
-
-
     @OneToMany(mappedBy = "sites", cascade = CascadeType.ALL, fetch = FetchType.EAGER)
     private List<PageEntity> pages;
-
-    @OneToMany(mappedBy = "sites", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @OneToMany(mappedBy = "sites", cascade = CascadeType.ALL, fetch = FetchType.EAGER)
     List<LemmaEntity> lemmas;
-
-//    @PrePersist
-//    protected void onCreate() {
-//        statusTime = LocalDateTime.now();
-//    }
-//
-//    @PreUpdate
-//    protected void onUpdate() {
-//        if (status == IndexationStatuses.INDEXING) {
-//            statusTime = LocalDateTime.now();
-//        }
-//    }
 }

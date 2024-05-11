@@ -1,10 +1,11 @@
-package searchengine.services;
+package searchengine.services.helper;
 
 import lombok.extern.slf4j.Slf4j;
 import org.apache.lucene.morphology.russian.RussianLuceneMorphology;
+import org.springframework.stereotype.Component;
 import org.springframework.stereotype.Service;
-import searchengine.repository.LemmaRepository;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -15,25 +16,32 @@ import java.util.regex.Pattern;
 
 @Slf4j
 @Service
+@Component
 public class LemmaFinder {
     private final RussianLuceneMorphology russianLuceneMorphology;
-    private LemmaRepository lemmaRepository;
 
-    public LemmaFinder(RussianLuceneMorphology russianLuceneMorphology, LemmaRepository lemmaRepository) {
-        this.russianLuceneMorphology = russianLuceneMorphology;
-        this.lemmaRepository = lemmaRepository;
+    public LemmaFinder() {
+        try {
+            russianLuceneMorphology = new RussianLuceneMorphology();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     public HashMap<String, Integer> collectLemmas(String text) {
         text = clearText(text);
+        text = removeHtmlTags(text);
         HashMap<String, Integer> lemmaList = new HashMap<>();
 
         String[] elements = text.toLowerCase(Locale.ROOT).split("\\s+");
         for (String element : elements) {
             List<String> wordsList = getLemmaList(element);
-            for (String word : wordsList) {
-                int count = lemmaList.getOrDefault(word, 0);
-                lemmaList.put(word, count + 1);
+
+            if (!wordsList.isEmpty()) {
+                for (String word : wordsList) {
+                    int count = lemmaList.getOrDefault(word, 0);
+                    lemmaList.put(word, count + 1);
+                }
             }
         }
         return lemmaList;

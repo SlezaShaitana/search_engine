@@ -6,7 +6,6 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import searchengine.model.SiteEntity;
 
-
 @AllArgsConstructor
 @Getter
 @Setter

@@ -4,17 +4,16 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import searchengine.model.SiteEntity;
+import searchengine.model.LemmaEntity;
+import searchengine.model.PageEntity;
 
 @AllArgsConstructor
 @Getter
 @Setter
 @NoArgsConstructor
-public class PageDto {
+public class IndexDto {
     private Integer id;
-    private SiteEntity sites;
-    private String path;
-    private Integer code;
-    private String content;
-    private Integer siteId;
+    private PageEntity pages;
+    private LemmaEntity lemma;
+    private float rank;
 }

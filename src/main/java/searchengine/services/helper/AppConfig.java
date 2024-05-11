@@ -1,4 +1,4 @@
-package searchengine.services;
+package searchengine.services.helper;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
