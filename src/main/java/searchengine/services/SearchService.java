@@ -1,15 +1,12 @@
 package searchengine.services;
 
 import org.springframework.http.ResponseEntity;
+import searchengine.dto.search.SearchData;
 
-import java.util.HashMap;
+import java.util.List;
 
 public interface SearchService {
-    HashMap<String, Integer> morphologyForms(String word);
-
     ResponseEntity<Object> search(String query, String site, int offset, int limit);
-
-//    SaveWordResponse saveWord(String word);
-//
-//    WordsListResponse searchWords(SearchWordRequest searchWordRequest);
+    List<SearchData> searchThroughAllSites(String query, int offset, int limit);
+    List<SearchData> onePageSearch(String query, String url, int offset, int limit);
 }

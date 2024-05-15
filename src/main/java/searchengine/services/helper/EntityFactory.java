@@ -44,6 +44,13 @@ public class EntityFactory {
         this.indexRepository = null;
     }
 
+    public EntityFactory(LemmaRepository lemmaRepository,
+                         IndexRepository indexRepository) {
+        this.lemmaRepository = lemmaRepository;
+        this.pageRepository = null;
+        this.indexRepository = indexRepository;
+        this.siteRepository = null;
+    }
 
     public SiteEntity createSiteEntity(Site site) {
         SiteEntity siteEntity = new SiteEntity();

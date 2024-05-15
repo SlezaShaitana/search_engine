@@ -6,6 +6,7 @@ import lombok.Setter;
 import org.hibernate.annotations.OnDelete;
 import org.hibernate.annotations.OnDeleteAction;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @Setter
@@ -28,5 +29,5 @@ public class PageEntity {
     @Column(name = "content", columnDefinition = "MEDIUMTEXT", nullable = false)
     private String content;
     @OneToMany(mappedBy = "pageId", fetch = FetchType.LAZY, cascade = CascadeType.REMOVE, orphanRemoval = true)
-    private List<IndexEntity> indexEntityList;
+    private List<IndexEntity> indexEntityList = new ArrayList<>();
 }

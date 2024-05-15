@@ -43,7 +43,6 @@ public class ApiController {
                                          int offset,
                                          @RequestParam(name = "limit", required = false, defaultValue = "20")
                                          int limit) {
-
         return searchService.search(query, site, offset, limit);
     }
 

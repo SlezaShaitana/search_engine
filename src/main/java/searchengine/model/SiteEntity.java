@@ -6,6 +6,7 @@ import lombok.Setter;
 import org.springframework.data.annotation.LastModifiedDate;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 
 @Getter
@@ -30,7 +31,7 @@ public class SiteEntity {
     @Column(name = "name", columnDefinition = "VARCHAR(255)", nullable = false)
     private String name;
     @OneToMany(mappedBy = "sites", cascade = CascadeType.ALL, fetch = FetchType.EAGER)
-    private List<PageEntity> pages;
+    private List<PageEntity> pages = new ArrayList<>();
     @OneToMany(mappedBy = "sites", cascade = CascadeType.ALL, fetch = FetchType.EAGER)
-    List<LemmaEntity> lemmas;
+    List<LemmaEntity> lemmas = new ArrayList<>();
 }

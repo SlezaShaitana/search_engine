@@ -2,7 +2,6 @@ package searchengine.services.helper;
 
 import lombok.extern.slf4j.Slf4j;
 import org.jsoup.Connection;
-import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import searchengine.model.*;
 import searchengine.repository.IndexRepository;

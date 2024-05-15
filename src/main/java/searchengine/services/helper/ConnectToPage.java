@@ -3,6 +3,7 @@ package searchengine.services.helper;
 import lombok.extern.slf4j.Slf4j;
 import org.jsoup.Connection;
 import org.jsoup.Jsoup;
+import org.jsoup.nodes.Document;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
@@ -18,6 +19,12 @@ public class ConnectToPage {
                 .ignoreContentType(true)
                 .followRedirects(true)
                 .referrer("http://www.google.com");
+
         return connection;
+    }
+
+    public String getTitleFromHtml(String content) {
+        Document doc = Jsoup.parse(content);
+        return doc.title();
     }
 }

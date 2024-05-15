@@ -34,4 +34,10 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         log.error("Application specific error handling", e);
         return new ResponseEntity<>(new IndexingError(false, e.getMessage()), HttpStatus.NOT_MODIFIED);
     }
+
+    @ExceptionHandler({SearchDataNotFoundException.class})
+    public ResponseEntity<IndexingError> handleException(SearchDataNotFoundException e) {
+        log.error("Application specific error handling", e);
+        return new ResponseEntity<>(new IndexingError(false, e.getMessage()), HttpStatus.BAD_REQUEST);
+    }
 }
