@@ -8,7 +8,6 @@
 
 
 ![2024-05-16 18-00-17 - Trim](https://github.com/SlezaShaitana/search_engine/assets/132721004/50040eab-1e4e-44b4-8118-666b7be7fccf)
-![2024-05-16 18-00-17 - Trim](https://github.com/SlezaShaitana/search_engine/assets/132721004/50040eab-1e4e-44b4-8118-666b7be7fccf)
 
 
 
