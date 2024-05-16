@@ -68,7 +68,7 @@ jQuery
 Склонируйте репозиторий проекта с GitHub:
 
 ```
-git clone https://github.com/your_username/your_project.git
+git clone https://github.com/SlezaShaitana/search_engine.git
 ```
 
 Cоздать локальную базу данных, и в файле application.properties указать параметры подключения к базе данных.
