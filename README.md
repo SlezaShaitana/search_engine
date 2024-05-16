@@ -23,44 +23,44 @@
    
 - Java
 
-Spring Boot
+- Spring Boot
 
-MYSQL
+- MYSQL
 
-Lombok
+- Lombok
 
-Maven
+- Maven
 
-Apache Lucene
+- Apache Lucene
 
-JPA (Hibernate)
+- JPA (Hibernate)
 
-Jsoup
+- Jsoup
 
-REST
+- REST
 
-JSON
+- JSON
 
-Slf4j
+- Slf4j
 
-HTML
+- HTML
 
-CSS
+- CSS
 
-JavaScript
+- JavaScript
 
-Thymeleaf
+- Thymeleaf
 
-jQuery
+- jQuery
 
 
 ## В процессе разработки пришлось столкнуться с рядом проблем, таких как:
 
-Оптимизация скорости индексации и поиска;
+- Оптимизация скорости индексации и поиска;
 
-Зазработка алгоритма ранжирования страниц по релевантности;
+- Зазработка алгоритма ранжирования страниц по релевантности;
 
-Учёт морфологии слов при поиске.
+- Учёт морфологии слов при поиске.
 
 ## Установка и настройка:
 
