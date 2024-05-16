@@ -71,17 +71,23 @@ jQuery
 git clone https://github.com/your_username/your_project.git
 ```
 
-Установить и настроить локальный сервер MySQL.
+Cоздать локальную базу данных, и в файле application.properties указать параметры подключения к базе данных.
 
-Создать базу данных.
+```
+server:
+ port: 8080
 
-Установить и настроить локальный сервер Tomcat.
+spring:
+ datasource:
+   username: user
+   password: pass
+   url: jdbc:mysql://localhost:3306/search_engine?useSSL=false&requireSSL=false&allowPublicKeyRetrieval=true
+ jpa:
+   properties:
+     hibernate:
+```
 
-Скачать и установить Maven.
-
-Скачать исходный код проекта и импортировать его в среду разработки (например, IntelliJ IDEA).
-
-В файле application.properties указать параметры подключения к базе данных.
+Собрать проект с помощью сборщика maven
 
 Открыть в браузере адрес http://localhost:8080/search-engine и начать использовать поисковый движок.
 
