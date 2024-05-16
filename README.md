@@ -85,6 +85,10 @@ spring:
  jpa:
    properties:
      hibernate:
+   dialect: org.hibernate.dialect.MySQL8Dialect
+   hibernate:
+     ddl-auto: update
+   show-sql: true
 ```
 
 Собрать проект с помощью сборщика maven
