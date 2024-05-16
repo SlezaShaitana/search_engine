@@ -21,7 +21,7 @@
 
 ## Стек технологий
    
-Java
+- Java
 
 Spring Boot
 
