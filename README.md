@@ -54,6 +54,10 @@
 
 - Учёт морфологии слов при поиске.
 
+  ## Интерактивная документация
+
+  http://localhost:8080/swagger-ui/index.html#/api-controller/startIndexing
+
 ## Установка и настройка:
 
 Убедитесь, что у вас установлены Java выше 11 версии, Maven и Git.
