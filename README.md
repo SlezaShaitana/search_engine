@@ -88,7 +88,7 @@ git clone https://github.com/SlezaShaitana/search_engine.git
 cd search_engine
 ```
 
-Cоздать локальную базу данных, и в файле application.properties указать параметры подключения к базе данных.
+Cоздайте локальную базу данных, и в файле application.properties указать параметры подключения к базе данных.
 
 ```
 server:
