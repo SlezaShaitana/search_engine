@@ -56,7 +56,8 @@
 
   ## Интерактивная документация
 
-  http://localhost:8080/swagger-ui/index.html#/api-controller/startIndexing
+  ![image](https://github.com/SlezaShaitana/search_engine/assets/132721004/fde3be14-cb01-4291-b8fd-4a8593b42538)
+
 
 ## Установка и настройка:
 
