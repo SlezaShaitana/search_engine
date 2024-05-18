@@ -21,6 +21,7 @@ public class LemmaFinder {
         try {
             russianLuceneMorphology = new RussianLuceneMorphology();
         } catch (IOException e) {
+            log.error(e.getMessage());
             throw new RuntimeException(e);
         }
     }
@@ -60,6 +61,7 @@ public class LemmaFinder {
                 }
             }
         } catch (Exception e) {
+            log.error(e.getMessage());
         }
         return lemmaList;
     }

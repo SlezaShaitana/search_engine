@@ -7,10 +7,6 @@ import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 import searchengine.model.*;
-import searchengine.repository.IndexRepository;
-import searchengine.repository.LemmaRepository;
-import searchengine.repository.PageRepository;
-import searchengine.repository.SiteRepository;
 
 import java.io.IOException;
 import java.time.LocalDateTime;
@@ -24,35 +20,26 @@ public class IndexingRecursiveAction extends RecursiveAction {
     private final String url;
     private final SiteEntity siteEntity;
     private final int maxDepth;
-    private int currentDepth;
-    private final PageRepository pageRepository;
-    private final SiteRepository siteRepository;
-    private ConcurrentLinkedQueue<String> pagesToCrawl;
+    private final int currentDepth;
+    private final ConcurrentLinkedQueue<String> pagesToCrawl = new ConcurrentLinkedQueue<>();
     private final AtomicBoolean stopIndexingFlag;
-    private ForkJoinPool pool;
-    private LemmaFinder lemmaFinder = new LemmaFinder();
-    private final LemmaRepository lemmaRepository;
-    private final IndexRepository indexRepository;
+    private final ForkJoinPool pool;
+    private final LemmaFinder lemmaFinder;
     private final EntityFactory entityFactory;
     private final ConnectToPage connectToPage;
 
     public IndexingRecursiveAction(String url, SiteEntity siteEntity, int maxDepth,
-                                   int currentDepth, PageRepository pageRepository,
-                                   SiteRepository siteRepository, AtomicBoolean stopIndexingFlag,
-                                   ForkJoinPool pool, LemmaRepository lemmaRepository, IndexRepository indexRepository) {
+                                   int currentDepth, EntityFactory entityFactory, AtomicBoolean stopIndexingFlag,
+                                   ForkJoinPool pool, ConnectToPage connectToPage, LemmaFinder lemmaFinder) {
         this.url = url;
         this.siteEntity = siteEntity;
         this.maxDepth = maxDepth;
         this.currentDepth = currentDepth;
-        this.pageRepository = pageRepository;
-        this.siteRepository = siteRepository;
         this.stopIndexingFlag = stopIndexingFlag;
         this.pool = pool;
-        this.lemmaRepository = lemmaRepository;
-        this.indexRepository = indexRepository;
-        pagesToCrawl = new ConcurrentLinkedQueue<>();
-        entityFactory = new EntityFactory(lemmaRepository, pageRepository, indexRepository);
-        connectToPage = new ConnectToPage();
+        this.entityFactory = entityFactory;
+        this.connectToPage = connectToPage;
+        this.lemmaFinder = lemmaFinder;
     }
 
     @Override
@@ -80,8 +67,8 @@ public class IndexingRecursiveAction extends RecursiveAction {
             List<IndexingRecursiveAction> subTasks = new ArrayList<>();
             for (String childUrl : pagesToCrawl) {
                 IndexingRecursiveAction subTask = new IndexingRecursiveAction(url +
-                        childUrl, siteEntity, maxDepth, currentDepth + 1,
-                        pageRepository, siteRepository, stopIndexingFlag, pool, lemmaRepository, indexRepository);
+                        childUrl, siteEntity, maxDepth, currentDepth + 1, entityFactory,
+                        stopIndexingFlag, pool, connectToPage, lemmaFinder);
                 subTasks.add(subTask);
                 subTask.fork();
             }
@@ -94,7 +81,8 @@ public class IndexingRecursiveAction extends RecursiveAction {
             if (siteEntity.getUrl().equals(url)) {
                 siteEntity.setLastError("Could not connect to site: " + url +
                         " .Error message: " + e);
-                siteRepository.save(siteEntity);
+
+                entityFactory.savingToSiteRepository(siteEntity);
             } else {
                 int statusCode = e.getStatusCode();
                 savingChildren(url, statusCode, "Failed to load page content. Error:" + e.getMessage());
@@ -110,7 +98,7 @@ public class IndexingRecursiveAction extends RecursiveAction {
         if (!stopIndexingFlag.get()) {
             siteEntity.setStatus(status);
             siteEntity.setStatusTime(LocalDateTime.now());
-            siteRepository.save(siteEntity);
+            entityFactory.savingToSiteRepository(siteEntity);
         }
     }
 
@@ -122,36 +110,16 @@ public class IndexingRecursiveAction extends RecursiveAction {
         if (isCorrectUrl(childUrl)) {
             log.info("Link is valid");
             childUrl = stripParams(childUrl);
-            synchronized (pageRepository) {
-                boolean exists = pageRepository.existsByPath(childUrl);
-                if (!exists && currentDepth < maxDepth) {
-                    log.info("Page not found in list");
-                    PageEntity pageEntity = entityFactory.createPageEntity(siteEntity, childUrl, content, statusCode);
-                    pagesToCrawl.add(childUrl);
-                    HashMap<String, Integer> lemmasList = lemmaFinder.collectLemmas(content);
-                    for (Map.Entry<String, Integer> lemma : lemmasList.entrySet()) {
-                        float count = lemma.getValue();
-                        LemmaEntity lemmaEntity = lemmaRepository.findByLemmaIgnoreCaseAndSitesId(lemma.getKey(), siteEntity.getId());
-                        IndexEntity indexEntityUniquePage = indexRepository.findByLemmaIdAndPageId(lemmaEntity, pageEntity);
-                        if (lemmaEntity != null) {
-                            lemmaEntity.setFrequency(lemmaEntity.getFrequency() + 1);
-                            lemmaRepository.save(lemmaEntity);
-                            if (indexEntityUniquePage != null) {
-                                indexEntityUniquePage.setRank(count);
-                                indexRepository.save(indexEntityUniquePage);
-                            }
-                            if (indexEntityUniquePage == null) {
-                                entityFactory.createIndexEntity(pageEntity, lemmaEntity, count);
-                            }
-                        } else {
-                            LemmaEntity newLemma = entityFactory.createLemmaEntity(siteEntity, lemma.getKey());
-                            entityFactory.createIndexEntity(pageEntity, newLemma, count);
-                        }
-                    }
-                }
+            boolean exists = entityFactory.existByPath(childUrl);
+            if (!exists && currentDepth < maxDepth) {
+                log.info("Page not found in list");
+                PageEntity pageEntity = entityFactory.createPageEntity(siteEntity, childUrl, content, statusCode);
+                pagesToCrawl.add(childUrl);
+                entityFactory.handleLemmas(lemmaFinder, content, siteEntity, pageEntity);
             }
         }
     }
+
 
     private String stripParams(String urlForCorrection) {
         String urlStripParams = siteEntity.getUrl().replaceAll("https://(www.)?", "");

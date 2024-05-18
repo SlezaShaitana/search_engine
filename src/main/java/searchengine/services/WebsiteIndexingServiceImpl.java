@@ -12,9 +12,7 @@ import searchengine.repository.IndexRepository;
 import searchengine.repository.LemmaRepository;
 import searchengine.repository.PageRepository;
 import searchengine.repository.SiteRepository;
-import searchengine.services.helper.EntityFactory;
-import searchengine.services.helper.IndexingRecursiveAction;
-import searchengine.services.helper.SinglePageCrawl;
+import searchengine.services.helper.*;
 
 import java.util.*;
 import java.util.concurrent.*;
@@ -34,6 +32,8 @@ public class WebsiteIndexingServiceImpl implements WebSiteIndexingService {
     @Getter
     private boolean isIndexing;
     private final EntityFactory entityFactory;
+    private final ConnectToPage connectToPage;
+    private final LemmaFinder lemmaFinder;
 
     public boolean existenceSiteInConfigurationFile(String url) {
         List<Site> sitesList = sites.getSites();
@@ -73,8 +73,8 @@ public class WebsiteIndexingServiceImpl implements WebSiteIndexingService {
         for (Site site : sitesList) {
             SiteEntity siteEntity = rebuildingCreatingInDatabase(site);
             ForkJoinTask<Void> forkJoinTask = new IndexingRecursiveAction(
-                    site.getUrl(), siteEntity, 4, 0,
-                    pageRepository, siteRepository, stopIndexingFlag, pool, lemmaRepository, indexRepository);
+                    site.getUrl(), siteEntity, 4, 0, entityFactory,
+                    stopIndexingFlag, pool, connectToPage, lemmaFinder);
             forkJoinTaskList.add(forkJoinTask);
             forkJoinTask.fork();
         }
@@ -93,6 +93,7 @@ public class WebsiteIndexingServiceImpl implements WebSiteIndexingService {
             try {
                 pool.awaitTermination(1, TimeUnit.MINUTES);
             } catch (InterruptedException e) {
+                log.error(e.getMessage());
                 Thread.interrupted();
                 Thread.currentThread().interrupt();
             }
@@ -130,8 +131,7 @@ public class WebsiteIndexingServiceImpl implements WebSiteIndexingService {
                 siteEntity = entityFactory.createSiteEntity(desiredSite);
                 idSite = siteEntity.getId();
             }
-            SinglePageCrawl pageCrawl = new SinglePageCrawl(pageRepository, siteRepository,
-                    lemmaRepository, indexRepository, idSite, siteEntity, path);
+            SinglePageCrawl pageCrawl = new SinglePageCrawl(idSite, path, entityFactory, connectToPage);
             if (page == null || !pageRepository.existsById(page.getId())) {
                 pageCrawl.indexPage(url);
             } else {

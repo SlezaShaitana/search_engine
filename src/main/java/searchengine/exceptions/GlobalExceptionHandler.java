@@ -17,14 +17,8 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         return new ResponseEntity<>(new IndexingError(false, e.getMessage()), HttpStatus.CONFLICT);
     }
 
-    @ExceptionHandler({SiteUrlNotAllowedException.class})
-    protected ResponseEntity<IndexingError> handleException(SiteUrlNotAllowedException e) {
-        log.error("Application specific error handling", e);
-        return new ResponseEntity<>(new IndexingError(false, e.getMessage()), HttpStatus.BAD_REQUEST);
-    }
-
-    @ExceptionHandler({EmptyQueryException.class})
-    public ResponseEntity<IndexingError> handleException(EmptyQueryException e) {
+    @ExceptionHandler({SiteUrlNotAllowedException.class, EmptyQueryException.class, SearchDataNotFoundException.class})
+    public ResponseEntity<IndexingError> handleException(RuntimeException e) {
         log.error("Application specific error handling", e);
         return new ResponseEntity<>(new IndexingError(false, e.getMessage()), HttpStatus.BAD_REQUEST);
     }
@@ -33,11 +27,5 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     public ResponseEntity<IndexingError> handleException(IndexingIsNotRunningExceptions e) {
         log.error("Application specific error handling", e);
         return new ResponseEntity<>(new IndexingError(false, e.getMessage()), HttpStatus.NOT_MODIFIED);
-    }
-
-    @ExceptionHandler({SearchDataNotFoundException.class})
-    public ResponseEntity<IndexingError> handleException(SearchDataNotFoundException e) {
-        log.error("Application specific error handling", e);
-        return new ResponseEntity<>(new IndexingError(false, e.getMessage()), HttpStatus.BAD_REQUEST);
     }
 }

@@ -22,7 +22,6 @@ public class StatisticsServiceImpl implements StatisticsService {
     private final SiteRepository siteRepository;
     private final PageRepository pageRepository;
     private final LemmaRepository lemmaRepository;
-    private final IndexRepository indexRepository;
 
     private TotalStatistics getTotalStatistics() {
         TotalStatistics total = new TotalStatistics();
