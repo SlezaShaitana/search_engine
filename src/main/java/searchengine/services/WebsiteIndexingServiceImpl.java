@@ -3,6 +3,7 @@ package searchengine.services;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import searchengine.config.Site;
@@ -63,6 +64,7 @@ public class WebsiteIndexingServiceImpl implements WebSiteIndexingService {
         return entityFactory.createSiteEntity(site);
     }
 
+    @Async
     public void startIndexing() {
         pool = new ForkJoinPool(4);
         stopIndexingFlag.set(false);
@@ -111,6 +113,7 @@ public class WebsiteIndexingServiceImpl implements WebSiteIndexingService {
 
     @Transactional
     @Override
+    @Async
     public void addOrUpdate(String url) {
         if (existenceSiteInConfigurationFile(url)) {
             String path = url.replaceFirst("https?://[^/]+", "");

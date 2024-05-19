@@ -46,7 +46,7 @@ public class ApiController {
         if (indexingService.isIndexing()) {
             throw new IndexingHasAlreadyStartedException("Индексация уже запущена");
         }
-        new Thread(() -> indexingService.startIndexing()).start();
+        indexingService.startIndexing();
         return ResponseEntity.ok().body(new ResponseDto(true));
     }
 
@@ -66,9 +66,7 @@ public class ApiController {
                     "Данная страница находится за пределами сайтов, " +
                             "указанных в конфигурационном файле");
         }
-        new Thread(() -> {
-            indexingService.addOrUpdate(url);
-        }).start();
+        indexingService.addOrUpdate(url);
         return ResponseEntity.accepted().body(new ResponseDto(true));
     }
 }

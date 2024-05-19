@@ -14,6 +14,14 @@ spring:
       ddl-auto: create
     show-sql: true
 
+  task:
+   execution:
+     pool:
+       type: simple
+       core-size: 4
+       max-size: 8
+       queue-capacity: 10
+
 # example values
 
 indexing-settings:
