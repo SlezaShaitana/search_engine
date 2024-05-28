@@ -75,7 +75,7 @@ public class WebsiteIndexingServiceImpl implements WebSiteIndexingService {
         for (Site site : sitesList) {
             SiteEntity siteEntity = rebuildingCreatingInDatabase(site);
             ForkJoinTask<Void> forkJoinTask = new IndexingRecursiveAction(
-                    site.getUrl(), siteEntity, 4, 0, entityFactory,
+                    site.getUrl(), siteEntity, 3, 0, entityFactory,
                     stopIndexingFlag, pool, connectToPage, lemmaFinder);
             forkJoinTaskList.add(forkJoinTask);
             forkJoinTask.fork();

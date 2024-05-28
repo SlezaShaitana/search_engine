@@ -26,7 +26,7 @@ spring:
 
 indexing-settings:
   sites:
-      - url: https://www.playback.ru
-        name: PlayBack.Ru
+#      - url: https://www.playback.ru
+#        name: PlayBack.Ru
       - url:  https://sendel.ru/
         name: Sendel

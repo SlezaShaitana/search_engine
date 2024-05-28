@@ -21,7 +21,7 @@ public class IndexingRecursiveAction extends RecursiveAction {
     private final SiteEntity siteEntity;
     private final int maxDepth;
     private final int currentDepth;
-    private final ConcurrentLinkedQueue<String> pagesToCrawl = new ConcurrentLinkedQueue<>();
+    private final HashSet<String> pagesToCrawl = new HashSet<>();
     private final AtomicBoolean stopIndexingFlag;
     private final ForkJoinPool pool;
     private final LemmaFinder lemmaFinder;
@@ -65,33 +65,45 @@ public class IndexingRecursiveAction extends RecursiveAction {
                 savingChildren(childUrl, statusCode, content);
             }
             List<IndexingRecursiveAction> subTasks = new ArrayList<>();
+            if (currentDepth + 1 < maxDepth) {
             for (String childUrl : pagesToCrawl) {
-                IndexingRecursiveAction subTask = new IndexingRecursiveAction(url +
+
+                IndexingRecursiveAction subTask = new IndexingRecursiveAction(siteEntity.getUrl() +
                         childUrl, siteEntity, maxDepth, currentDepth + 1, entityFactory,
                         stopIndexingFlag, pool, connectToPage, lemmaFinder);
                 subTasks.add(subTask);
                 subTask.fork();
             }
-
+            } else {
+                log.info("Maximum depth exceeded on page: {}", url);
+            }
             settingSiteStatus(IndexationStatuses.INDEXED);
-
             for (IndexingRecursiveAction subtask : subTasks) {
                 subtask.join();
             }
         } catch (HttpStatusException e) {
+            String errorInSite = e.getUrl();
+            errorInSite = stripParams(errorInSite);
             log.error("Error message: " + e.getMessage());
             if (siteEntity.getUrl().equals(url)) {
                 log.error("Could not connect to site {} ", url);
                 siteEntity.setLastError("Could not connect to site: " + url +
                         " .Error message: " + e);
-
                 entityFactory.savingToSiteRepository(siteEntity);
             } else {
                 int statusCode = e.getStatusCode();
-                try {
-                    savingChildren(url, statusCode, "Failed to load page content. Error:" + e.getMessage());
-                } catch (IOException | InterruptedException ex) {
-                    throw new RuntimeException(ex);
+                boolean exists = entityFactory.existByPath(errorInSite);
+                if (exists) {
+                    PageEntity pageEntity = entityFactory.findByPagePath(errorInSite);
+                    pageEntity.setContent(e.getMessage());
+                    pageEntity.setCode(e.getStatusCode());
+                    entityFactory.savingToPageRepository(pageEntity);
+                } else {
+                    try {
+                        savingChildren(errorInSite, statusCode, "Failed to load page content. Error:" + e.getMessage());
+                    } catch (IOException | InterruptedException ex) {
+                        throw new RuntimeException(ex);
+                    }
                 }
             }
         } catch (InterruptedException e) {
@@ -120,7 +132,7 @@ public class IndexingRecursiveAction extends RecursiveAction {
             log.info("Link is valid");
             childUrl = stripParams(childUrl);
             boolean exists = entityFactory.existByPath(childUrl);
-            if (!exists && currentDepth < maxDepth) {
+            if (!exists && currentDepth + 1 <= maxDepth) {
                 log.info("Page not found in list");
                 PageEntity pageEntity = entityFactory.createPageEntity(siteEntity, childUrl, content, statusCode);
                 pagesToCrawl.add(childUrl);
