@@ -48,22 +48,23 @@ public class SearchServiceImpl implements SearchService {
                     throw new SiteUrlNotAllowedException("Указанная страница не найдена");
 
                 } else {
-                    searchData = onePageSearch(query, url, offset, limit);
+                    searchData = onePageSearch(query, url, offset);
                 }
             } else {
-                searchData = searchThroughAllSites(query, offset, limit);
+                searchData = searchThroughAllSites(query, offset);
             }
             if (searchData == null) {
                 throw new SearchDataNotFoundException("NOT_FOUND");
             }
-            return new ResponseEntity<>(new SearchResponse(true, searchData.size(), searchData), HttpStatus.OK);
+
+            List<SearchData> searchDataSublist = searchData.subList(offset, Math.min(offset + limit, searchData.size()));
+            return new ResponseEntity<>(new SearchResponse(true, searchData.size(), searchDataSublist), HttpStatus.OK);
         }
     }
 
     @Override
-    public List<SearchData> searchThroughAllSites(String query, int offset, int limit) {
+    public List<SearchData> searchThroughAllSites(String query, int offset) {
         List<SiteEntity> sites = siteRepository.findAll();
-        List<SearchData> searchDataList = new ArrayList<>();
         List<LemmaEntity> sortedLemmasPerSite = new ArrayList<>();
         List<String> lemmasFromQuery = getQueryIntoLemma(query);
 
@@ -72,26 +73,20 @@ public class SearchServiceImpl implements SearchService {
         }
         List<SearchData> searchData = null;
         for (LemmaEntity lemmaEntity : sortedLemmasPerSite) {
-            if (lemmaEntity.getLemma().equals(query)) {
-                searchData = new ArrayList<>(getSearchDataList(sortedLemmasPerSite, lemmasFromQuery, offset, limit));
+            if (lemmasFromQuery.contains(lemmaEntity.getLemma())) {
+                searchData = new ArrayList<>(getSearchDataList(sortedLemmasPerSite, lemmasFromQuery, offset));
                 searchData.sort((o1, o2) -> Float.compare(o2.getRelevance(), o1.getRelevance()));
-                if (searchData.size() > limit) {
-                    for (int i = offset; i < limit; i++) {
-                        searchDataList.add(searchData.get(i));
-                    }
-                    return searchDataList;
-                }
             }
         }
         return searchData;
     }
 
     @Override
-    public List<SearchData> onePageSearch(String query, String url, int offset, int limit) {
+    public List<SearchData> onePageSearch(String query, String url, int offset) {
         SiteEntity siteEntity = siteRepository.findByUrl(url);
         List<String> lemmasFromQuery = getQueryIntoLemma(query);
         List<LemmaEntity> lemmasFromSite = getLemmasFromSite(lemmasFromQuery, siteEntity);
-        return getSearchDataList(lemmasFromSite, lemmasFromQuery, offset, limit);
+        return getSearchDataList(lemmasFromSite, lemmasFromQuery, offset);
     }
 
     private List<String> getQueryIntoLemma(String query) {
@@ -112,11 +107,16 @@ public class SearchServiceImpl implements SearchService {
         return lemmaList;
     }
 
+
     private List<SearchData> getSearchDataList(List<LemmaEntity> lemmas, List<String> lemmasFromQuery,
-                                               int offset, int limit) {
+                                               int offset) {
         List<SearchData> searchDataList = new ArrayList<>();
         List<Integer> lemmaIds = lemmas.stream().map(LemmaEntity::getId).toList();
         if (lemmas.size() >= lemmasFromQuery.size()) {
+
+            System.out.println(lemmasFromQuery); // D E L E T E
+
+
             List<PageEntity> sortedPageList = pageRepository.findByLemmas(lemmaIds);
             List<Integer> pageIds = sortedPageList.stream().map(PageEntity::getId).toList();
             List<IndexEntity> sortedIndexList = indexRepository.findByLemmasAndPages(lemmaIds, pageIds);
@@ -127,16 +127,12 @@ public class SearchServiceImpl implements SearchService {
             if (offset > interimDataList.size()) {
                 return new ArrayList<>();
             }
-
-            if (interimDataList.size() > limit) {
-                for (int i = offset; i < limit; i++) {
-                    searchDataList.add(interimDataList.get(i));
-                }
-                return searchDataList;
-            } else return interimDataList;
+            for (int i = offset; i < interimDataList.size(); i++) {
+                searchDataList.add(interimDataList.get(i));
+            }
+            return searchDataList;
         } else return searchDataList;
     }
-
 
     private LinkedHashMap<PageEntity, Float> getSortPagesWithAbsRelevance(List<PageEntity> pages,
                                                                           List<IndexEntity> indexes) {
@@ -222,8 +218,8 @@ public class SearchServiceImpl implements SearchService {
         if (content.lastIndexOf(" ", start) != -1) {
             prevPoint = content.lastIndexOf(" ", start);
         } else prevPoint = start;
-        if (content.indexOf(" ", end + 30) != -1) {
-            lastPoint = content.indexOf(" ", end + 30);
+        if (content.indexOf(" ", end + 50) != -1) {
+            lastPoint = content.indexOf(" ", end + 50);
         } else lastPoint = content.indexOf(" ", end);
         String text = content.substring(prevPoint, lastPoint);
         try {

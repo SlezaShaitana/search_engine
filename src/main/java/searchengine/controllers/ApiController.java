@@ -38,6 +38,9 @@ public class ApiController {
                                          int offset,
                                          @RequestParam(name = "limit", required = false, defaultValue = "20")
                                          int limit) {
+        if (limit < 20) {
+            limit = 20;
+        }
         return searchService.search(query, site, offset, limit);
     }
 

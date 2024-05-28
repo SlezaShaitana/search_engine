@@ -83,6 +83,10 @@ public class EntityFactory {
         indexRepository.save(indexEntity);
     }
 
+    public void savingToPageRepository(PageEntity pageEntity) {
+        pageRepository.save(pageEntity);
+    }
+
     public void savingToLemmaRepository(LemmaEntity lemmaEntity) {
         lemmaRepository.save(lemmaEntity);
     }
@@ -132,5 +136,9 @@ public class EntityFactory {
                 createIndexEntity(pageEntity, newLemma, count);
             }
         }
+    }
+
+    public PageEntity findByPagePath(String path) {
+        return pageRepository.findByPath(path);
     }
 }

@@ -52,12 +52,12 @@ public class IndexingRecursiveAction extends RecursiveAction {
 
     private void compute(int currentDepth) {
         try {
-            Thread.sleep(400);
+            Thread.sleep(300);
             settingSiteStatus(IndexationStatuses.INDEXING);
             log.info("Crawling page: {}", url);
             Connection connection = connectToPage.connectToPage(url);
             Document page = connection.get();
-            String content = page.toString();
+            String content = "";
             int statusCode = connection.response().statusCode();
             Elements elements = page.select("a[href], link[href]");
             for (Element e : elements) {
@@ -72,20 +72,27 @@ public class IndexingRecursiveAction extends RecursiveAction {
                 subTasks.add(subTask);
                 subTask.fork();
             }
+
+            settingSiteStatus(IndexationStatuses.INDEXED);
+
             for (IndexingRecursiveAction subtask : subTasks) {
                 subtask.join();
             }
-            settingSiteStatus(IndexationStatuses.INDEXED);
         } catch (HttpStatusException e) {
-            log.error(e.getMessage());
+            log.error("Error message: " + e.getMessage());
             if (siteEntity.getUrl().equals(url)) {
+                log.error("Could not connect to site {} ", url);
                 siteEntity.setLastError("Could not connect to site: " + url +
                         " .Error message: " + e);
 
                 entityFactory.savingToSiteRepository(siteEntity);
             } else {
                 int statusCode = e.getStatusCode();
-                savingChildren(url, statusCode, "Failed to load page content. Error:" + e.getMessage());
+                try {
+                    savingChildren(url, statusCode, "Failed to load page content. Error:" + e.getMessage());
+                } catch (IOException | InterruptedException ex) {
+                    throw new RuntimeException(ex);
+                }
             }
         } catch (InterruptedException e) {
             log.error(e.getMessage());
@@ -102,12 +109,14 @@ public class IndexingRecursiveAction extends RecursiveAction {
         }
     }
 
-    private void savingChildren(String childUrl, int statusCode, String content) {
+    private void savingChildren(String childUrl, int statusCode, String content) throws IOException, InterruptedException {
         if (stopIndexingFlag.get()) {
             return;
         }
         log.info("Received link: {}", childUrl);
         if (isCorrectUrl(childUrl)) {
+            Document page = connectToPage.getDocumentPage(childUrl);
+            content = page.html();
             log.info("Link is valid");
             childUrl = stripParams(childUrl);
             boolean exists = entityFactory.existByPath(childUrl);
@@ -120,7 +129,6 @@ public class IndexingRecursiveAction extends RecursiveAction {
         }
     }
 
-
     private String stripParams(String urlForCorrection) {
         String urlStripParams = siteEntity.getUrl().replaceAll("https://(www.)?", "");
         log.info("Trimming root site");
@@ -132,7 +140,7 @@ public class IndexingRecursiveAction extends RecursiveAction {
         log.info("Checking link validity");
         String urlStripParams = siteEntity.getUrl().replaceAll("https://(www.)?", "");
         Pattern patternRoot = Pattern.compile("^https?://(www\\.)?" + urlStripParams);
-        Pattern patternNotFile = Pattern.compile("([^\\s]+(\\.(?i)(jpg|css|jpeg|webp|doc|" +
+        Pattern patternNotFile = Pattern.compile("([^\\s]+(\\.(?i)(xml|icon|ico|json|jpg|css|jpeg|webp|doc|" +
                 "png|gif|bmp|pdf))(\\?[\\w\\-]+=\\w+)*)");
         Pattern patternNotAnchor = Pattern.compile("#([\\w\\-]+)?$");
         return patternRoot.matcher(urlChild).lookingAt()

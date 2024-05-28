@@ -7,6 +7,8 @@ import java.util.List;
 
 public interface SearchService {
     ResponseEntity<Object> search(String query, String site, int offset, int limit);
-    List<SearchData> searchThroughAllSites(String query, int offset, int limit);
-    List<SearchData> onePageSearch(String query, String url, int offset, int limit);
+
+    List<SearchData> searchThroughAllSites(String query, int offset);
+
+    List<SearchData> onePageSearch(String query, String url, int offset);
 }

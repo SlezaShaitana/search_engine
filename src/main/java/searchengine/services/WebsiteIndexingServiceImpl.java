@@ -66,7 +66,7 @@ public class WebsiteIndexingServiceImpl implements WebSiteIndexingService {
 
     @Async
     public void startIndexing() {
-        pool = new ForkJoinPool(4);
+        pool = new ForkJoinPool(3);
         stopIndexingFlag.set(false);
         isIndexing = true;
         List<Site> sitesList = sites.getSites();

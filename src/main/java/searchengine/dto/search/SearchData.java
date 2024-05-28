@@ -5,6 +5,7 @@ import lombok.*;
 @AllArgsConstructor
 @Getter
 @Setter
+@ToString
 public class SearchData {
     private String site;
     private String siteName;
