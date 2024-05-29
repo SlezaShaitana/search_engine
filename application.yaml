@@ -11,7 +11,7 @@ spring:
       hibernate:
         dialect: org.hibernate.dialect.MySQL8Dialect
     hibernate:
-      ddl-auto: create
+      ddl-auto: validate
     show-sql: true
 
   task:
@@ -19,14 +19,14 @@ spring:
      pool:
        type: simple
        core-size: 4
-       max-size: 8
+       max-size: 5
        queue-capacity: 10
 
 # example values
 
 indexing-settings:
   sites:
-#      - url: https://www.playback.ru
-#        name: PlayBack.Ru
+      - url: https://ipfran.ru/
+        name: Ipfran
       - url:  https://sendel.ru/
         name: Sendel

@@ -24,7 +24,6 @@ import searchengine.services.helper.LemmaFinder;
 import java.util.*;
 import java.util.stream.Collectors;
 
-
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -43,15 +42,16 @@ public class SearchServiceImpl implements SearchService {
             throw new EmptyQueryException("Задан пустой поисковый запрос");
         } else {
             List<SearchData> searchData;
+            List<String> lemmasFromQuery = getQueryIntoLemma(query);
             if (!url.isEmpty()) {
                 if (siteRepository.findByUrl(url) == null) {
                     throw new SiteUrlNotAllowedException("Указанная страница не найдена");
 
                 } else {
-                    searchData = onePageSearch(query, url, offset);
+                    searchData = onePageSearch(lemmasFromQuery, url);
                 }
             } else {
-                searchData = searchThroughAllSites(query, offset);
+                searchData = searchOnAllSites(lemmasFromQuery);
             }
             if (searchData == null) {
                 throw new SearchDataNotFoundException("NOT_FOUND");
@@ -60,33 +60,6 @@ public class SearchServiceImpl implements SearchService {
             List<SearchData> searchDataSublist = searchData.subList(offset, Math.min(offset + limit, searchData.size()));
             return new ResponseEntity<>(new SearchResponse(true, searchData.size(), searchDataSublist), HttpStatus.OK);
         }
-    }
-
-    @Override
-    public List<SearchData> searchThroughAllSites(String query, int offset) {
-        List<SiteEntity> sites = siteRepository.findAll();
-        List<LemmaEntity> sortedLemmasPerSite = new ArrayList<>();
-        List<String> lemmasFromQuery = getQueryIntoLemma(query);
-
-        for (SiteEntity siteEntity : sites) {
-            sortedLemmasPerSite.addAll(getLemmasFromSite(lemmasFromQuery, siteEntity));
-        }
-        List<SearchData> searchData = null;
-        for (LemmaEntity lemmaEntity : sortedLemmasPerSite) {
-            if (lemmasFromQuery.contains(lemmaEntity.getLemma())) {
-                searchData = new ArrayList<>(getSearchDataList(sortedLemmasPerSite, lemmasFromQuery, offset));
-                searchData.sort((o1, o2) -> Float.compare(o2.getRelevance(), o1.getRelevance()));
-            }
-        }
-        return searchData;
-    }
-
-    @Override
-    public List<SearchData> onePageSearch(String query, String url, int offset) {
-        SiteEntity siteEntity = siteRepository.findByUrl(url);
-        List<String> lemmasFromQuery = getQueryIntoLemma(query);
-        List<LemmaEntity> lemmasFromSite = getLemmasFromSite(lemmasFromQuery, siteEntity);
-        return getSearchDataList(lemmasFromSite, lemmasFromQuery, offset);
     }
 
     private List<String> getQueryIntoLemma(String query) {
@@ -100,36 +73,48 @@ public class SearchServiceImpl implements SearchService {
         return lemmaList;
     }
 
-    private List<LemmaEntity> getLemmasFromSite(List<String> lemmas, SiteEntity site) {
+    @Override
+    public List<SearchData> searchOnAllSites(List<String> lemmasFromQuery) {
+        List<SiteEntity> sites = siteRepository.findAll();
+        List<LemmaEntity> sortedLemmasPerSite = new ArrayList<>();
+        for (SiteEntity siteEntity : sites) {
+            sortedLemmasPerSite.addAll(getLemmasFromSiteSortedByFrequency(lemmasFromQuery, siteEntity));
+        }
+        List<SearchData> searchData = null;
+        for (LemmaEntity lemmaEntity : sortedLemmasPerSite) {
+            if (lemmasFromQuery.contains(lemmaEntity.getLemma())) {
+                searchData = new ArrayList<>(getSearchDataList(sortedLemmasPerSite, lemmasFromQuery));
+                searchData.sort((o1, o2) -> Float.compare(o2.getRelevance(), o1.getRelevance()));
+            }
+        }
+        return searchData;
+    }
+
+    @Override
+    public List<SearchData> onePageSearch(List<String> lemmasFromQuery, String url) {
+        SiteEntity siteEntity = siteRepository.findByUrl(url);
+        List<LemmaEntity> lemmasFromSite = getLemmasFromSiteSortedByFrequency(lemmasFromQuery, siteEntity);
+        return getSearchDataList(lemmasFromSite, lemmasFromQuery);
+    }
+
+    private List<LemmaEntity> getLemmasFromSiteSortedByFrequency(List<String> lemmas, SiteEntity site) {
         log.info("Get lemmas from site: {}", site.getUrl());
         ArrayList<LemmaEntity> lemmaList = (ArrayList<LemmaEntity>) lemmaRepository.findLemmasBySite(lemmas, site.getId());
         lemmaList.sort(Comparator.comparingInt(LemmaEntity::getFrequency));
         return lemmaList;
     }
 
-
-    private List<SearchData> getSearchDataList(List<LemmaEntity> lemmas, List<String> lemmasFromQuery,
-                                               int offset) {
+    private List<SearchData> getSearchDataList(List<LemmaEntity> lemmas, List<String> lemmasFromQuery) {
         List<SearchData> searchDataList = new ArrayList<>();
         List<Integer> lemmaIds = lemmas.stream().map(LemmaEntity::getId).toList();
         if (lemmas.size() >= lemmasFromQuery.size()) {
-
-            System.out.println(lemmasFromQuery); // D E L E T E
-
-
             List<PageEntity> sortedPageList = pageRepository.findByLemmas(lemmaIds);
             List<Integer> pageIds = sortedPageList.stream().map(PageEntity::getId).toList();
             List<IndexEntity> sortedIndexList = indexRepository.findByLemmasAndPages(lemmaIds, pageIds);
             LinkedHashMap<PageEntity, Float> sortedPagesByAbsRelevance =
                     getSortPagesWithAbsRelevance(sortedPageList, sortedIndexList);
-            List<SearchData> interimDataList = getSearchData(sortedPagesByAbsRelevance, lemmasFromQuery);
+            searchDataList = getSearchData(sortedPagesByAbsRelevance, lemmasFromQuery);
 
-            if (offset > interimDataList.size()) {
-                return new ArrayList<>();
-            }
-            for (int i = offset; i < interimDataList.size(); i++) {
-                searchDataList.add(interimDataList.get(i));
-            }
             return searchDataList;
         } else return searchDataList;
     }
@@ -162,11 +147,11 @@ public class SearchServiceImpl implements SearchService {
                                            List<String> lemmasFromQuey) {
         List<SearchData> searchData = new ArrayList<>();
         for (PageEntity pageEntity : sortedPages.keySet()) {
-            String uri = pageEntity.getPath();
-            String content = pageEntity.getContent();
-            String title = connectToPage.getTitleFromHtml(content);
             SiteEntity siteEntity = pageEntity.getSites();
             String site = siteEntity.getUrl();
+            String uri = pageEntity.getPath();
+            String content = pageEntity.getContent();
+            String title = connectToPage.getTitleFromHtml(content) + " - " + site + uri;
             String siteName = siteEntity.getName();
             Float absRelevance = sortedPages.get(pageEntity);
             String clearContent = lemmaFinder.removeHtmlTags(content);
@@ -183,17 +168,17 @@ public class SearchServiceImpl implements SearchService {
             lemmaIndex.addAll(lemmaFinder.findLemmaIndexInText(content, lemma));
         }
         Collections.sort(lemmaIndex);
-        List<String> wordsList = extractAndHighlightWordsByLemmaIndex(content, lemmaIndex);
+        List<String> wordsList = extractHighlightedWordsByLemmaIndices(content, lemmaIndex);
         for (int i = 0; i < wordsList.size(); i++) {
             result.append(wordsList.get(i)).append("... ");
-            if (i > 3) {
+            if (i > 4) {
                 break;
             }
         }
         return result.toString();
     }
 
-    private List<String> extractAndHighlightWordsByLemmaIndex(String content, List<Integer> lemmaIndex) {
+    private List<String> extractHighlightedWordsByLemmaIndices(String content, List<Integer> lemmaIndex) {
         List<String> result = new ArrayList<>();
         for (int i = 0; i < lemmaIndex.size(); i++) {
             int start = lemmaIndex.get(i);
@@ -218,8 +203,8 @@ public class SearchServiceImpl implements SearchService {
         if (content.lastIndexOf(" ", start) != -1) {
             prevPoint = content.lastIndexOf(" ", start);
         } else prevPoint = start;
-        if (content.indexOf(" ", end + 50) != -1) {
-            lastPoint = content.indexOf(" ", end + 50);
+        if (content.indexOf(" ", end + 40) != -1) {
+            lastPoint = content.indexOf(" ", end + 40);
         } else lastPoint = content.indexOf(" ", end);
         String text = content.substring(prevPoint, lastPoint);
         try {

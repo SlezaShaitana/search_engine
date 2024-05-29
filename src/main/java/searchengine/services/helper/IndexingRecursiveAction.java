@@ -66,14 +66,14 @@ public class IndexingRecursiveAction extends RecursiveAction {
             }
             List<IndexingRecursiveAction> subTasks = new ArrayList<>();
             if (currentDepth + 1 < maxDepth) {
-            for (String childUrl : pagesToCrawl) {
+                for (String childUrl : pagesToCrawl) {
 
-                IndexingRecursiveAction subTask = new IndexingRecursiveAction(siteEntity.getUrl() +
-                        childUrl, siteEntity, maxDepth, currentDepth + 1, entityFactory,
-                        stopIndexingFlag, pool, connectToPage, lemmaFinder);
-                subTasks.add(subTask);
-                subTask.fork();
-            }
+                    IndexingRecursiveAction subTask = new IndexingRecursiveAction(siteEntity.getUrl() +
+                            childUrl, siteEntity, maxDepth, currentDepth + 1, entityFactory,
+                            stopIndexingFlag, pool, connectToPage, lemmaFinder);
+                    subTasks.add(subTask);
+                    subTask.fork();
+                }
             } else {
                 log.info("Maximum depth exceeded on page: {}", url);
             }
@@ -91,20 +91,10 @@ public class IndexingRecursiveAction extends RecursiveAction {
                         " .Error message: " + e);
                 entityFactory.savingToSiteRepository(siteEntity);
             } else {
-                int statusCode = e.getStatusCode();
-                boolean exists = entityFactory.existByPath(errorInSite);
-                if (exists) {
-                    PageEntity pageEntity = entityFactory.findByPagePath(errorInSite);
-                    pageEntity.setContent(e.getMessage());
-                    pageEntity.setCode(e.getStatusCode());
-                    entityFactory.savingToPageRepository(pageEntity);
-                } else {
-                    try {
-                        savingChildren(errorInSite, statusCode, "Failed to load page content. Error:" + e.getMessage());
-                    } catch (IOException | InterruptedException ex) {
-                        throw new RuntimeException(ex);
-                    }
-                }
+                PageEntity pageEntity = entityFactory.findByPagePath(errorInSite);
+                pageEntity.setContent(e.getMessage());
+                pageEntity.setCode(e.getStatusCode());
+                entityFactory.savingToPageRepository(pageEntity);
             }
         } catch (InterruptedException e) {
             log.error(e.getMessage());
