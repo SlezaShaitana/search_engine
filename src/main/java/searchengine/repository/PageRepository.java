@@ -18,10 +18,19 @@ public interface PageRepository extends JpaRepository<PageEntity, Integer> {
 
     List<PageEntity> findBySites_Id(Integer siteId);
 
+    @Query(value = "SELECT page.id, page.site_id, path, code, content " +
+            "FROM page " +
+            "WHERE page.id IN (" +
+            "  SELECT i.page_id " +
+            "  FROM `index` i " +
+            "  JOIN lemma l on l.id = i.lemma_id " +
+            "  WHERE l.id IN :lemmas " +
+            "  GROUP BY i.page_id " +
+            "  HAVING COUNT(DISTINCT i.lemma_id) = :lemmaCount)", nativeQuery = true)
+    List<PageEntity> findByLemmas(@Param("lemmas") List<Integer> lemmas, @Param("lemmaCount") int lemmaCount);
 
-    @Query(value = "SELECT p.* FROM page p JOIN `index` i ON p.id = i.page_id WHERE i.lemma_id IN :lemmas",
-            nativeQuery = true)
-    List<PageEntity> findByLemmas(@Param("lemmas") List<Integer> lemmas);
+
+
 }
 
 

@@ -35,31 +35,38 @@ public class SearchServiceImpl implements SearchService {
     private final IndexRepository indexRepository;
     private final LemmaFinder lemmaFinder;
     private final ConnectToPage connectToPage;
+    private int countWordsRequest;
+    private static final int MAX_SNIPPET_LENGTH = 350;
 
     @Override
     public ResponseEntity<Object> search(String query, String url, int offset, int limit) {
         if (query.isEmpty()) {
             throw new EmptyQueryException("Задан пустой поисковый запрос");
         } else {
-            List<SearchData> searchData;
+            String[] words = query.split("\\s+");
+            countWordsRequest = words.length;
             List<String> lemmasFromQuery = getQueryIntoLemma(query);
-            if (!url.isEmpty()) {
-                if (siteRepository.findByUrl(url) == null) {
-                    throw new SiteUrlNotAllowedException("Указанная страница не найдена");
-
-                } else {
-                    searchData = onePageSearch(lemmasFromQuery, url);
-                }
-            } else {
-                searchData = searchOnAllSites(lemmasFromQuery);
-            }
-            if (searchData == null) {
-                throw new SearchDataNotFoundException("NOT_FOUND");
-            }
-
-            List<SearchData> searchDataSublist = searchData.subList(offset, Math.min(offset + limit, searchData.size()));
-            return new ResponseEntity<>(new SearchResponse(true, searchData.size(), searchDataSublist), HttpStatus.OK);
+            List<SearchData> resultSearchData = determineSearchScope(url, lemmasFromQuery);
+            List<SearchData> searchDataSublist = resultSearchData.subList(offset, Math.min(offset + limit, resultSearchData.size()));
+            return new ResponseEntity<>(new SearchResponse(true, resultSearchData.size(), searchDataSublist), HttpStatus.OK);
         }
+    }
+
+    private List<SearchData> determineSearchScope(String url, List<String> lemmasFromQuery) {
+        List<SearchData> searchData;
+        if (!url.isEmpty()) {
+            if (siteRepository.findByUrl(url) == null) {
+                throw new SiteUrlNotAllowedException("Указанная страница не найдена");
+            } else {
+                searchData = onePageSearch(lemmasFromQuery, url);
+            }
+        } else {
+            searchData = searchOnAllSites(lemmasFromQuery);
+        }
+        if (searchData == null) {
+            throw new SearchDataNotFoundException("NOT_FOUND");
+        }
+        return searchData;
     }
 
     private List<String> getQueryIntoLemma(String query) {
@@ -108,7 +115,7 @@ public class SearchServiceImpl implements SearchService {
         List<SearchData> searchDataList = new ArrayList<>();
         List<Integer> lemmaIds = lemmas.stream().map(LemmaEntity::getId).toList();
         if (lemmas.size() >= lemmasFromQuery.size()) {
-            List<PageEntity> sortedPageList = pageRepository.findByLemmas(lemmaIds);
+            List<PageEntity> sortedPageList = pageRepository.findByLemmas(lemmaIds, lemmasFromQuery.size());
             List<Integer> pageIds = sortedPageList.stream().map(PageEntity::getId).toList();
             List<IndexEntity> sortedIndexList = indexRepository.findByLemmasAndPages(lemmaIds, pageIds);
             LinkedHashMap<PageEntity, Float> sortedPagesByAbsRelevance =
@@ -162,50 +169,52 @@ public class SearchServiceImpl implements SearchService {
     }
 
     private String getSnippet(String content, List<String> lemmasFromQuey) {
-        List<Integer> lemmaIndex = new ArrayList<>();
+        List<Integer> lemmaIndexes = findLemmaIndexesInText(content, lemmasFromQuey);
+        List<String> highlightedWords = getHighlightedFragmentsByLemmaIndices(content, lemmaIndexes);
         StringBuilder result = new StringBuilder();
-        for (String lemma : lemmasFromQuey) {
-            lemmaIndex.addAll(lemmaFinder.findLemmaIndexInText(content, lemma));
-        }
-        Collections.sort(lemmaIndex);
-        List<String> wordsList = extractHighlightedWordsByLemmaIndices(content, lemmaIndex);
-        for (int i = 0; i < wordsList.size(); i++) {
-            result.append(wordsList.get(i)).append("... ");
-            if (i > 4) {
+        for (int i = 0; i < highlightedWords.size() && result.length() < MAX_SNIPPET_LENGTH; i++) {
+            String word = highlightedWords.get(i);
+            if (result.length() + word.length() < MAX_SNIPPET_LENGTH) {
+                result.append(word).append("... ");
+            } else {
                 break;
             }
         }
         return result.toString();
     }
 
-    private List<String> extractHighlightedWordsByLemmaIndices(String content, List<Integer> lemmaIndex) {
+    private List<Integer> findLemmaIndexesInText(String content, List<String> lemmas) {
+        List<Integer> indexes = new ArrayList<>();
+        for (String lemma : lemmas) {
+            indexes.addAll(lemmaFinder.findLemmaIndexInText(content, lemma));
+        }
+        Collections.sort(indexes);
+        return indexes;
+    }
+
+    private List<String> getHighlightedFragmentsByLemmaIndices(String content, List<Integer> lemmaIndexes) {
         List<String> result = new ArrayList<>();
-        for (int i = 0; i < lemmaIndex.size(); i++) {
-            int start = lemmaIndex.get(i);
+        for (int i = 0; i < lemmaIndexes.size(); i++) {
+            int start = lemmaIndexes.get(i);
             int end = content.indexOf(" ", start);
             int step = i + 1;
-            while (step < lemmaIndex.size() && lemmaIndex.get(step) - end > 0 && lemmaIndex.get(step) - end < 5) {
-                end = content.indexOf(" ", lemmaIndex.get(step));
+            while (step < lemmaIndexes.size() && lemmaIndexes.get(step) - end > 0 &&
+                    lemmaIndexes.get(step) - end < countWordsRequest) {
+                end = content.indexOf(" ", lemmaIndexes.get(step));
                 step += 1;
             }
             i = step - 1;
-            String text = getWordsFromIndexWithHighlighting(start, end, content);
+            String text = getHighlightedWordInFragment(start, end, content);
             result.add(text);
         }
         result.sort(Comparator.comparingInt(String::length).reversed());
         return result;
     }
 
-    private String getWordsFromIndexWithHighlighting(int start, int end, String content) {
+    private String getHighlightedWordInFragment(int start, int end, String content) {
         String word = content.substring(start, end);
-        int prevPoint;
-        int lastPoint;
-        if (content.lastIndexOf(" ", start) != -1) {
-            prevPoint = content.lastIndexOf(" ", start);
-        } else prevPoint = start;
-        if (content.indexOf(" ", end + 40) != -1) {
-            lastPoint = content.indexOf(" ", end + 40);
-        } else lastPoint = content.indexOf(" ", end);
+        int prevPoint = content.lastIndexOf(" ", start) != -1 ? content.lastIndexOf(" ", start) : start;
+        int lastPoint = content.indexOf(" ", end + 100) != -1 ? content.indexOf(" ", end + 100) : content.indexOf(" ", end);
         String text = content.substring(prevPoint, lastPoint);
         try {
             text = text.replaceAll(word, "<b>" + word + "</b>");
