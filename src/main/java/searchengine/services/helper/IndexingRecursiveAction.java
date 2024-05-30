@@ -144,9 +144,10 @@ public class IndexingRecursiveAction extends RecursiveAction {
         Pattern patternRoot = Pattern.compile("^https?://(www\\.)?" + urlStripParams);
         Pattern patternNotFile = Pattern.compile("([^\\s]+(\\.(?i)(xml|icon|ico|json|jpg|css|jpeg|webp|doc|" +
                 "png|gif|bmp|pdf))(\\?[\\w\\-]+=\\w+)*)");
-        Pattern patternNotAnchor = Pattern.compile("#([\\w\\-]+)?$");
+//        Pattern patternNotAnchor = Pattern.compile("#([\\w\\-]+)?$");
+        Pattern patternNotAnchor = Pattern.compile("^(?!.*#).*$");
         return patternRoot.matcher(urlChild).lookingAt()
                 && !patternNotFile.matcher(urlChild).find()
-                && !patternNotAnchor.matcher(urlChild).find();
+                && patternNotAnchor.matcher(urlChild).find();
     }
 }
