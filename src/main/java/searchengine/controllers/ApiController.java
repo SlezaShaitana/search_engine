@@ -7,9 +7,9 @@ import searchengine.dto.statistics.StatisticsResponse;
 import searchengine.exceptions.IndexingHasAlreadyStartedException;
 import searchengine.exceptions.IndexingIsNotRunningExceptions;
 import searchengine.exceptions.SiteUrlNotAllowedException;
-import searchengine.services.SearchService;
-import searchengine.services.StatisticsService;
-import searchengine.services.WebsiteIndexingServiceImpl;
+import searchengine.services.search.SearchService;
+import searchengine.services.statistics.StatisticsService;
+import searchengine.services.indexing.WebsiteIndexingServiceImpl;
 
 @RestController
 @RequestMapping("/api")

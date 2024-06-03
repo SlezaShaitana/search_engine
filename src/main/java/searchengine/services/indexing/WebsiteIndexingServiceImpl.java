@@ -1,4 +1,4 @@
-package searchengine.services;
+package searchengine.services.indexing;
 
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;

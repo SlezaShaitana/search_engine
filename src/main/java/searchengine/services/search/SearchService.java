@@ -1,4 +1,4 @@
-package searchengine.services;
+package searchengine.services.search;
 
 import org.springframework.http.ResponseEntity;
 import searchengine.dto.search.SearchData;
