@@ -11,7 +11,7 @@ spring:
       hibernate:
         dialect: org.hibernate.dialect.MySQL8Dialect
     hibernate:
-      ddl-auto: create
+      ddl-auto: validate
     show-sql: true
 
   task:
@@ -26,7 +26,11 @@ spring:
 
 indexing-settings:
   sites:
-#      - url: https://ipfran.ru/
-#        name: Ipfran
+      - url: https://ipfran.ru/
+        name: Ipfran
       - url:  https://sendel.ru/
         name: Sendel
+      - url:  https://vorkutaugol.ru/
+        name: Vorkutaugol
+#      - url:  https://volochek.life/
+#        name: Volochek

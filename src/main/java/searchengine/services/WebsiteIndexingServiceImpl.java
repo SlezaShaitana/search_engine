@@ -34,7 +34,7 @@ public class WebsiteIndexingServiceImpl implements WebSiteIndexingService {
     private boolean isIndexing;
     private final EntityFactory entityFactory;
     private final ConnectToPage connectToPage;
-    private final LemmaFinder lemmaFinder;
+    private final Lemmatizer lemmatizer;
 
     public boolean existenceSiteInConfigurationFile(String url) {
         List<Site> sitesList = sites.getSites();
@@ -66,7 +66,7 @@ public class WebsiteIndexingServiceImpl implements WebSiteIndexingService {
 
     @Async
     public void startIndexing() {
-        pool = new ForkJoinPool(3);
+        pool = new ForkJoinPool(9);
         stopIndexingFlag.set(false);
         isIndexing = true;
         List<Site> sitesList = sites.getSites();
@@ -75,8 +75,8 @@ public class WebsiteIndexingServiceImpl implements WebSiteIndexingService {
         for (Site site : sitesList) {
             SiteEntity siteEntity = rebuildingCreatingInDatabase(site);
             ForkJoinTask<Void> forkJoinTask = new IndexingRecursiveAction(
-                    site.getUrl(), siteEntity, 3, 0, entityFactory,
-                    stopIndexingFlag, pool, connectToPage, lemmaFinder);
+                    site.getUrl(), siteEntity, 5, 0, entityFactory,
+                    stopIndexingFlag, pool, connectToPage, lemmatizer);
             forkJoinTaskList.add(forkJoinTask);
             forkJoinTask.fork();
         }

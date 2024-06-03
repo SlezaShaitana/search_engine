@@ -24,13 +24,13 @@ public class IndexingRecursiveAction extends RecursiveAction {
     private final HashSet<String> pagesToCrawl = new HashSet<>();
     private final AtomicBoolean stopIndexingFlag;
     private final ForkJoinPool pool;
-    private final LemmaFinder lemmaFinder;
+    private final Lemmatizer lemmatizer;
     private final EntityFactory entityFactory;
     private final ConnectToPage connectToPage;
 
     public IndexingRecursiveAction(String url, SiteEntity siteEntity, int maxDepth,
                                    int currentDepth, EntityFactory entityFactory, AtomicBoolean stopIndexingFlag,
-                                   ForkJoinPool pool, ConnectToPage connectToPage, LemmaFinder lemmaFinder) {
+                                   ForkJoinPool pool, ConnectToPage connectToPage, Lemmatizer lemmatizer) {
         this.url = url;
         this.siteEntity = siteEntity;
         this.maxDepth = maxDepth;
@@ -39,7 +39,7 @@ public class IndexingRecursiveAction extends RecursiveAction {
         this.pool = pool;
         this.entityFactory = entityFactory;
         this.connectToPage = connectToPage;
-        this.lemmaFinder = lemmaFinder;
+        this.lemmatizer = lemmatizer;
     }
 
     @Override
@@ -52,7 +52,6 @@ public class IndexingRecursiveAction extends RecursiveAction {
 
     private void compute(int currentDepth) {
         try {
-            Thread.sleep(300);
             settingSiteStatus(IndexationStatuses.INDEXING);
             log.info("Crawling page: {}", url);
             Connection connection = connectToPage.connectToPage(url);
@@ -70,7 +69,7 @@ public class IndexingRecursiveAction extends RecursiveAction {
 
                     IndexingRecursiveAction subTask = new IndexingRecursiveAction(siteEntity.getUrl() +
                             childUrl, siteEntity, maxDepth, currentDepth + 1, entityFactory,
-                            stopIndexingFlag, pool, connectToPage, lemmaFinder);
+                            stopIndexingFlag, pool, connectToPage, lemmatizer);
                     subTasks.add(subTask);
                     subTask.fork();
                 }
@@ -92,9 +91,14 @@ public class IndexingRecursiveAction extends RecursiveAction {
                 entityFactory.savingToSiteRepository(siteEntity);
             } else {
                 PageEntity pageEntity = entityFactory.findByPagePath(errorInSite);
-                pageEntity.setContent(e.getMessage());
-                pageEntity.setCode(e.getStatusCode());
-                entityFactory.savingToPageRepository(pageEntity);
+                if (pageEntity != null) {
+                    pageEntity.setContent(e.getMessage());
+                    pageEntity.setCode(e.getStatusCode());
+                    entityFactory.savingToPageRepository(pageEntity);
+                } else {
+                    log.error("Page not found in database: " + errorInSite);
+                    entityFactory.createPageEntity(siteEntity, stripParams(e.getUrl()), e.getMessage(), e.getStatusCode());
+                }
             }
         } catch (InterruptedException e) {
             log.error(e.getMessage());
@@ -126,13 +130,13 @@ public class IndexingRecursiveAction extends RecursiveAction {
                 log.info("Page not found in list");
                 PageEntity pageEntity = entityFactory.createPageEntity(siteEntity, childUrl, content, statusCode);
                 pagesToCrawl.add(childUrl);
-                entityFactory.handleLemmas(lemmaFinder, content, siteEntity, pageEntity);
+                entityFactory.handleLemmas(lemmatizer, content, siteEntity, pageEntity);
             }
         }
     }
 
     private String stripParams(String urlForCorrection) {
-        String urlStripParams = siteEntity.getUrl().replaceAll("https://(www.)?", "");
+        String urlStripParams = siteEntity.getUrl().replaceAll("^(https?://)?(www\\.)?", "");
         log.info("Trimming root site");
         return urlForCorrection.replaceAll("https://" + urlStripParams, "")
                 .replaceAll(siteEntity.getUrl(), "");
@@ -140,14 +144,16 @@ public class IndexingRecursiveAction extends RecursiveAction {
 
     private boolean isCorrectUrl(String urlChild) {
         log.info("Checking link validity");
-        String urlStripParams = siteEntity.getUrl().replaceAll("https://(www.)?", "");
+        String urlStripParams = siteEntity.getUrl().replaceAll("^(https?://)?(www\\.)?", "");
         Pattern patternRoot = Pattern.compile("^https?://(www\\.)?" + urlStripParams);
-        Pattern patternNotFile = Pattern.compile("([^\\s]+(\\.(?i)(xml|icon|ico|json|jpg|css|jpeg|webp|doc|" +
+        Pattern patternNotFile = Pattern.compile("([^\\s]+(\\.(?i)(rtf|pptx|xlsx|yaml|svg|zip|xml|icon|ico|json|jpg|css|jpeg|webp|doc|" +
                 "png|gif|bmp|pdf))(\\?[\\w\\-]+=\\w+)*)");
-//        Pattern patternNotAnchor = Pattern.compile("#([\\w\\-]+)?$");
         Pattern patternNotAnchor = Pattern.compile("^(?!.*#).*$");
+        Pattern patternNotParams = Pattern.compile("\\?.*"); //checking for parameters
+
         return patternRoot.matcher(urlChild).lookingAt()
                 && !patternNotFile.matcher(urlChild).find()
-                && patternNotAnchor.matcher(urlChild).find();
+                && patternNotAnchor.matcher(urlChild).find()
+                && !patternNotParams.matcher(urlChild).find();
     }
 }

@@ -9,7 +9,7 @@ import java.io.IOException;
 
 @Slf4j
 public class SinglePageCrawl {
-    private LemmaFinder lemmaFinder = new LemmaFinder();
+    private Lemmatizer lemmatizer = new Lemmatizer();
     private final int idSite;
     private final String path;
     private final EntityFactory entityFactory;
@@ -35,7 +35,7 @@ public class SinglePageCrawl {
             siteEntity.setLastError(null);
             entityFactory.savingToSiteRepository(siteEntity);
             PageEntity pageEntity = entityFactory.createPageEntity(siteEntity, path, pageContent, statusCode);
-            entityFactory.handleLemmas(lemmaFinder, pageContent, siteEntity, pageEntity);
+            entityFactory.handleLemmas(lemmatizer, pageContent, siteEntity, pageEntity);
             siteEntity.setStatus(IndexationStatuses.INDEXED);
             entityFactory.savingToSiteRepository(siteEntity);
         } catch (IOException | InterruptedException e) {

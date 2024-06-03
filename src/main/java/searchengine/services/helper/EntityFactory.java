@@ -115,8 +115,8 @@ public class EntityFactory {
         return siteRepository.findById(idSite).orElseThrow(() -> new RuntimeException("Site not found"));
     }
 
-    public void handleLemmas(LemmaFinder lemmaFinder, String content, SiteEntity siteEntity, PageEntity pageEntity) {
-        HashMap<String, Integer> lemmasList = lemmaFinder.collectLemmas(content);
+    public void handleLemmas(Lemmatizer lemmatizer, String content, SiteEntity siteEntity, PageEntity pageEntity) {
+        HashMap<String, Integer> lemmasList = lemmatizer.getLemmaCounts(content);
         for (Map.Entry<String, Integer> lemma : lemmasList.entrySet()) {
             float count = lemma.getValue();
             LemmaEntity lemmaEntity = findByLemmaIgnoreCaseAndSitesId(lemma, siteEntity);

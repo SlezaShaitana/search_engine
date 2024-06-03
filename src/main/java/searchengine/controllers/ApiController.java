@@ -41,7 +41,7 @@ public class ApiController {
         if (limit < 20) {
             limit = 20;
         }
-        return searchService.search(query, site, offset, limit);
+        return searchService.searchByQueryAndUrlWithPagination(query, site, offset, limit);
     }
 
     @GetMapping("/startIndexing")
