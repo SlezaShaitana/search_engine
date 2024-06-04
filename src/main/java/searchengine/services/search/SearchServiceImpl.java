@@ -2,6 +2,7 @@ package searchengine.services.search;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringEscapeUtils;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
@@ -22,6 +23,7 @@ import searchengine.services.helper.ConnectToPage;
 import searchengine.services.helper.Lemmatizer;
 
 import java.util.*;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -224,7 +226,9 @@ public class SearchServiceImpl implements SearchService {
         int fragmentEndIndex = content.indexOf(" ", lemmaEndIndex + FRAGMENT_LENGTH) != -1
                 ? content.indexOf(" ", lemmaEndIndex + FRAGMENT_LENGTH) : content.indexOf(" ", lemmaEndIndex);
         String text = content.substring(fragmentStartIndex, fragmentEndIndex);
-        text = text.replaceAll(word, "<b>" + word + "</b>");
+        // Экранирование специальных символов в переменной word
+        String quotedWord = Pattern.quote(word);
+        text = text.replaceAll(quotedWord, "<b>" + word + "</b>");
         return text;
     }
 }
